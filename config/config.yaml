@@ -1,0 +1,11 @@
+env: "development"
+
+storage_path: "internal/db/db.db"
+
+http_server:
+  address: "localhost:8000"
+  timeout: 5s
+  debug: true
+  idle_timeout: 60s
+
+
