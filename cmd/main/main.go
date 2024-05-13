@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"github.com/Sanchir01/Grasp/internal/config"
+	"github.com/Sanchir01/Grasp/internal/server"
+	httpHandlers "github.com/Sanchir01/Grasp/internal/server/http"
+	mwlogger "github.com/Sanchir01/Grasp/internal/server/http/middleware/logger"
 	"github.com/Sanchir01/Grasp/pkg/lib/logger/handlers/slogpretty"
+
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,19 +22,28 @@ var (
 )
 
 func main() {
-	r := chi.NewRouter()
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hi"))
-	})
 	cfg := config.InitConfig()
 	log := setupLogger(cfg.Env)
+	srv := server.NewHttpServer(cfg)
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, mwlogger.New(log))
+	handlers := httpHandlers.NewChiRouter(r)
+
 	go func() {
-		http.ListenAndServe(cfg.HttpServer.Host+":"+cfg.HttpServer.Port, r)
+		if err := srv.Run(handlers.StartHttpHandlers()); err != nil {
+			log.Error("Listen server error", err.Error())
+		}
 	}()
+
 	log.Info("Listen server staterted", slog.String("port", cfg.HttpServer.Port))
+
 	quite := make(chan os.Signal, 1)
-	signal.Notify(quite, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(quite, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT)
 	<-quite
+
+	if err := srv.Shutdown(context.Background()); err != nil {
+		log.Error("Server shutdown error", err.Error())
+	}
 }
 
 func setupLogger(env string) *slog.Logger {
@@ -37,7 +51,6 @@ func setupLogger(env string) *slog.Logger {
 	switch env {
 	case development:
 		log = setupPrettySlog()
-
 	case production:
 		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	}

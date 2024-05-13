@@ -12,3 +12,5 @@ build-image:
 start-container:
 	docker run --name cryptobot-test -p 80:80 --env-file .env cryptobot-dockerfile
 
+compose-up:
+	docker-compose -f docker-compose.yaml ps
