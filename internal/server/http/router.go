@@ -2,18 +2,22 @@ package httpHandlers
 
 import (
 	"github.com/Sanchir01/Grasp/internal/config"
+	"github.com/Sanchir01/Grasp/internal/db/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"log/slog"
 	"net/http"
 )
 
 type Router struct {
 	chiRouter *chi.Mux
 	config    *config.Config
+	storage   *storage.Storage
+	logger    *slog.Logger
 }
 
-func NewChiRouter(chi *chi.Mux) *Router {
-	return &Router{chiRouter: chi}
+func NewChiRouter(chi *chi.Mux, cfg *config.Config, storage *storage.Storage, logger *slog.Logger) *Router {
+	return &Router{chiRouter: chi, config: cfg, storage: storage, logger: logger}
 }
 
 func (r *Router) StartHttpHandlers() http.Handler {

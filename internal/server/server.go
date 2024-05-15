@@ -13,10 +13,11 @@ type Server struct {
 
 func NewHttpServer(cfg *config.Config) *Server {
 	srv := &http.Server{
-		Addr:         cfg.HttpServer.Host + ":" + cfg.HttpServer.Port,
-		ReadTimeout:  cfg.HttpServer.Timeout,
-		WriteTimeout: cfg.HttpServer.Timeout,
-		IdleTimeout:  cfg.HttpServer.IdleTimeout,
+		Addr:           cfg.HttpServer.Host + ":" + cfg.HttpServer.Port,
+		MaxHeaderBytes: 1 << 20,
+		ReadTimeout:    cfg.HttpServer.Timeout,
+		WriteTimeout:   cfg.HttpServer.Timeout,
+		IdleTimeout:    cfg.HttpServer.IdleTimeout,
 	}
 	return &Server{
 		httpServer: srv,
