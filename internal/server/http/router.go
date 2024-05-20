@@ -10,18 +10,24 @@ import (
 )
 
 type Router struct {
-	chiRouter *chi.Mux
-	config    *config.Config
-	storage   *storage.Storage
-	logger    *slog.Logger
+	chiRouter     *chi.Mux
+	config        *config.Config
+	productsStr   *storage.ProductPostgresStorage
+	categoriesStr *storage.CategoriesPostgresStorage
+	logger        *slog.Logger
 }
 
-func NewChiRouter(chi *chi.Mux, cfg *config.Config, storage *storage.Storage, logger *slog.Logger) *Router {
-	return &Router{chiRouter: chi, config: cfg, storage: storage, logger: logger}
+func NewChiRouter(
+	chi *chi.Mux, cfg *config.Config, lg *slog.Logger,
+	pStr *storage.ProductPostgresStorage,
+	cStr *storage.CategoriesPostgresStorage,
+) *Router {
+	return &Router{chiRouter: chi, config: cfg, productsStr: pStr, logger: lg, categoriesStr: cStr}
 }
 
 func (r *Router) StartHttpHandlers() http.Handler {
 	r.routerCors()
+	r.CategoriesHandlers()
 
 	r.ProductsHandlers()
 

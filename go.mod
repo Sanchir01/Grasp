@@ -1,6 +1,6 @@
 module github.com/Sanchir01/Grasp
 
-go 1.22.0
+go 1.22.3
 
 require (
 	github.com/fatih/color v1.16.0

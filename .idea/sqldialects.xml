@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/internal/db/migrations/20240513093313_products.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/internal/db/migrations/20240515082239_auto_crated_at.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/internal/db/migrations/20240515111730_create_category_product.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/internal/db/storage/products.go" dialect="GenericSQL" />
+  </component>
+</project>

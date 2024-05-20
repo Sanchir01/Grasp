@@ -5,6 +5,7 @@ import (
 	"github.com/Sanchir01/Grasp/internal/db/model"
 	resp "github.com/Sanchir01/Grasp/pkg/lib/api/response"
 	"github.com/Sanchir01/Grasp/pkg/lib/logger/sl"
+	"github.com/Sanchir01/Grasp/pkg/lib/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -13,11 +14,12 @@ import (
 )
 
 type Request struct {
-	Name  string `json:"name" validate:"required"`
-	Price int    `json:"price" validate:"required"`
+	Name         string `json:"name" validate:"required"`
+	Price        int32  `json:"price" validate:"required"`
+	CategoryName string `json:"category_name" validate:"required"`
 }
 
-type Response struct {
+type ResponseProduct struct {
 	resp.Response
 	Product model.Products
 }
@@ -26,7 +28,7 @@ func (rout *Router) ProductsHandlers() {
 	rout.chiRouter.Route("/products", func(r chi.Router) {
 		r.Get("/", rout.getAllProduct)
 		r.Post("/", rout.createProduct)
-		r.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/op/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			w.Write([]byte(id))
 		})
@@ -34,7 +36,7 @@ func (rout *Router) ProductsHandlers() {
 }
 
 func (rout *Router) getAllProduct(w http.ResponseWriter, r *http.Request) {
-	products, err := rout.storage.GetAllProducts(context.Background())
+	products, err := rout.productsStr.GetAllProducts(context.Background())
 	if err != nil {
 		w.Write([]byte(err.Error()))
 		return
@@ -64,9 +66,19 @@ func (rout *Router) createProduct(writer http.ResponseWriter, request *http.Requ
 		render.JSON(writer, request, resp.ValidationError(validatorErr))
 		return
 	}
-	id, err := rout.storage.CreateProduct(context.Background(), model.Products{
-		Name:  req.Name,
-		Price: req.Price,
+	categorySlug, err := utils.Slugify(req.CategoryName)
+	if err != nil {
+		render.JSON(writer, request, resp.Error("Вы не ввели категорию товара"))
+	}
+	category, _ := rout.categoriesStr.GetCategoryBySlug(context.Background(), categorySlug)
+	if category == nil {
+		render.JSON(writer, request, resp.Error("category not found"))
+		return
+	}
+	id, err := rout.productsStr.CreateProduct(context.Background(), model.Products{
+		Name:       req.Name,
+		Price:      req.Price,
+		CategoryId: category.Id,
 	})
 
 	if err != nil {
@@ -77,11 +89,12 @@ func (rout *Router) createProduct(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	rout.logger.Info("product created", slog.Int64("id", id))
-	render.JSON(writer, request, Response{
+	render.JSON(writer, request, ResponseProduct{
 		Response: resp.OK(),
 		Product: model.Products{
-			Price: req.Price,
-			Name:  req.Name,
+			Price:      req.Price,
+			Name:       req.Name,
+			CategoryId: category.Id,
 		},
 	})
 }

@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
+	"os/signal"
+	"syscall"
 
 	"github.com/Sanchir01/Grasp/internal/config"
 	"github.com/Sanchir01/Grasp/internal/db/storage"
@@ -16,8 +19,6 @@ import (
 	_ "github.com/lib/pq"
 	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
 )
 
 var (
@@ -29,35 +30,38 @@ func main() {
 	cfg := config.InitConfig()
 	log := setupLogger(cfg.Env)
 	srv := server.NewHttpServer(cfg)
-	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, mwlogger.New(log))
+	router := chi.NewRouter()
+	router.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, mwlogger.New(log))
 
-	db, err := sqlx.Connect("postgres", "user=postgres dbname=postgres sslmode=disable password=postgres")
+	db, err := sqlx.Connect("postgres", "user=postgres dbname=golangS sslmode=disable password=sanchirgarik01")
 	if err != nil {
 		log.Error("sqlx.Connect error", err.Error())
-		return
 	}
 	log.Info("DATABASE CONNECTED", db)
 	defer db.Close()
 
-	myProducts := storage.NewProductStorage(db)
+	var (
+		myProducts        = storage.NewProductStorage(db)
+		categoriesStorage = storage.NewCategoriesStorage(db)
+		handlers          = httpHandlers.NewChiRouter(router, cfg, log, myProducts, categoriesStorage)
+	)
 
-	handlers := httpHandlers.NewChiRouter(r, cfg, myProducts, log)
-	go func() {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, os.Interrupt)
+	defer cancel()
+
+	go func(ctx context.Context) {
 		if err := srv.Run(handlers.StartHttpHandlers()); err != nil {
-			log.Error("Listen server error", err.Error())
+			if !errors.Is(err, context.Canceled) {
+				log.Error("Listen server error", slog.String("error", err.Error()))
+				return
+			}
+			log.Error("Listen server error", slog.String("error", err.Error()))
 		}
-	}()
+	}(ctx)
 
 	log.Info("Listen server staterted", slog.String("port", cfg.HttpServer.Port))
 
-	quite := make(chan os.Signal, 1)
-	signal.Notify(quite, syscall.SIGTERM, syscall.SIGINT, os.Interrupt)
-	<-quite
-
-	if err := srv.Shutdown(context.Background()); err != nil {
-		log.Error("Server shutdown error", err.Error())
-	}
+	<-ctx.Done()
 }
 
 func setupLogger(env string) *slog.Logger {
